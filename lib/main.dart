@@ -21,16 +21,33 @@ class MyApp extends StatelessWidget {
   }
 }
 
-final currentDate = Provider<DateTime>((ref) {
-  return DateTime.now();
-});
+//Esta extensao deixa somar os numeros com null ...
+//Estudar Generics
+extension OptionalInFixAddition<T extends num> on T? {
+  T? operator +(T? other) {
+    final shadow = this;
+    if (shadow != null) {
+      return shadow + (other ?? 0) as T;
+    } else {
+      return null;
+    }
+  }
+}
+
+class Counter extends StateNotifier<int?> {
+  Counter() : super(null);
+  void increment() => state = state == null ? 1 : state + 1;
+  int? get value => state;
+}
+
+final counterProvider =
+    StateNotifierProvider<Counter, int?>((ref) => Counter());
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final date = ref.watch(currentDate);
     return Scaffold(
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
@@ -43,9 +60,14 @@ class HomePage extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text(
-              date.toIso8601String(),
-            ),
+            Consumer(builder: (context, ref, child) {
+              final count = ref.watch(counterProvider);
+              final text = count == null ? "Press button" : count.toString();
+              return Text(text);
+            }),
+            TextButton(
+                onPressed: ref.read(counterProvider.notifier).increment,
+                child: const Text("Press me"))
           ],
         ),
       ),
