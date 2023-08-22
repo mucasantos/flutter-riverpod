@@ -21,38 +21,53 @@ class MyApp extends StatelessWidget {
   }
 }
 
-//Esta extensao deixa somar os numeros com null ...
-//Estudar Generics
-extension OptionalInFixAddition<T extends num> on T? {
-  T? operator +(T? other) {
-    final shadow = this;
-    if (shadow != null) {
-      return shadow + (other ?? 0) as T;
-    } else {
-      return null;
-    }
+enum City {
+  stockholm,
+  paris,
+  tokyo,
+  barueri,
+}
+
+typedef WeatherEmoji = String;
+
+Future<WeatherEmoji> getWeather(City city) {
+  return Future.delayed(
+      const Duration(seconds: 1),
+      () => {
+            City.barueri: 'hot',
+            City.paris: 'rainy',
+            City.tokyo: 'snow',
+            City.stockholm: 'windy',
+          }[city]!);
+}
+
+const unknownEmoji = 'not..';
+//UI write and reads from this
+final currentCityProvider = StateProvider<City?>((ref) => null);
+
+//UI reads this
+final weatherProvider = FutureProvider<WeatherEmoji>((ref) {
+  final city = ref.watch(currentCityProvider);
+
+  if (city != null) {
+    return getWeather(city);
+  } else {
+    return unknownEmoji;
   }
-}
-
-class Counter extends StateNotifier<int?> {
-  Counter() : super(null);
-  void increment() => state = state == null ? 1 : state + 1;
-  int? get value => state;
-}
-
-final counterProvider =
-    StateNotifierProvider<Counter, int?>((ref) => Counter());
+});
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentWeather = ref.watch(weatherProvider);
+
     return Scaffold(
       appBar: AppBar(
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
-        title: const Text("Home Page"),
+        title: const Text("Weather"),
       ),
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
@@ -60,14 +75,29 @@ class HomePage extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Consumer(builder: (context, ref, child) {
-              final count = ref.watch(counterProvider);
-              final text = count == null ? "Press button" : count.toString();
-              return Text(text);
-            }),
-            TextButton(
-                onPressed: ref.read(counterProvider.notifier).increment,
-                child: const Text("Press me"))
+            currentWeather.when(
+                data: (data) => Text(data),
+                error: (_, __) => const Text("error..."),
+                loading: () => const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: CircularProgressIndicator(),
+                    )),
+            Expanded(
+                child: ListView.builder(
+                    itemCount: City.values.length,
+                    itemBuilder: (context, index) {
+                      final city = City.values[index];
+                      final isSelected = city == ref.watch(currentCityProvider);
+                      return ListTile(
+                        title: Text(
+                          city.toString(),
+                        ),
+                        trailing: isSelected ? const Icon(Icons.check) : null,
+                        onTap: () {
+                          ref.read(currentCityProvider.notifier).state = city;
+                        },
+                      );
+                    }))
           ],
         ),
       ),
